@@ -4,13 +4,29 @@
  * Сервис-воркер, обеспечивающий оффлайновую работу избранного
  */
 
-const CACHE_VERSION = '1.0.0-broken';
+const CACHE_VERSION = '1.0.0';
+
+const CACHE_FILES = [
+    'https://yastatic.net/jquery/3.1.0/jquery.min.js',
+    '/gifs.html',
+    '/assets/blocks.js',
+    '/assets/templates.js',
+    '/assets/style.css',
+    '/assets/star.svg',
+    '/vendor/kv-keeper.js-1.0.4/kv-keeper.js',
+    '/vendor/bem-components-dist-5.0.0/touch-phone/bem-components.dev.js',
+    '/vendor/bem-components-dist-5.0.0/touch-phone/bem-components.dev.css',
+];
 
 importScripts('vendor/kv-keeper.js-1.0.4/kv-keeper.js');
 
 
 self.addEventListener('install', event => {
     const promise = preCacheAllFavorites()
+        .then(() => {
+          return caches.open(CACHE_VERSION)
+            .then(cache => cache.addAll(CACHE_FILES));
+        })
         // Вопрос №1: зачем нужен этот вызов?
         .then(() => self.skipWaiting())
         .then(() => console.log('[ServiceWorker] Installed!'));
@@ -127,7 +143,8 @@ function deleteObsoleteCaches() {
 function needStoreForOffline(cacheKey) {
     return cacheKey.includes('vendor/') ||
         cacheKey.includes('assets/') ||
-        cacheKey.endsWith('jquery.min.js');
+        cacheKey.endsWith('jquery.min.js') ||
+        cacheKey.endsWith('gifs.html');
 }
 
 // Скачать и добавить в кеш
