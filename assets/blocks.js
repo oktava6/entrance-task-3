@@ -466,8 +466,8 @@ modules.define('service-worker', ['i-bem'], function(provide, bem) {
             }
 
             this._serviceWorker
-                .register('./assets/service-worker.js')
-                .then(function() {
+                .register('./../service-worker.js')
+                .then(function(e) {
                     console.log('[ServiceWorkerContainer] ServiceWorker is registered!');
                 })
                 .catch(function(err) {
