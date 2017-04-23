@@ -20,6 +20,43 @@ importScripts('../vendor/kv-keeper.js-1.0.4/kv-keeper.js');
 
 Самое простое и логичное решение этой проблемы - закэшировать ресурсы в момент установки ServiceWorker-а с помощью метода [cache.addAll()](https://developer.mozilla.org/ru/docs/Web/API/Cache/addAll). Он принимает на вход массив URLs, получает данные и сохраняет их в кэш.  
 
+## Ответы на доп. вопросы  
+
+### Вопрос №1: зачем нужен этот вызов?
+`self.skipWaiting()`  
+
+Используется на этапе installing для немедленного перехода к этапу activating. Так, ServiceWorker пропускает этап installed, в котором он ожидает окончания работы других ServiceWorker-ов. В результате, ServiceWorker начинает работу сразу после регистрации. [Подробнее](https://mdn.mozillademos.org/files/12636/sw-lifecycle.png)  
+
+### Вопрос №2: зачем нужен этот вызов?
+`self.clients.claim()`  
+
+По-умолчанию, ServiceWorker становится активным и начинает обрабатывать запросы только после перезагрузки страницы. Вызов `self.clients.claim()` на этапе activating в событии active заставляет ServiceWorker начать работу немедленно. [Подробнее](https://mdn.mozillademos.org/files/12636/sw-lifecycle.png)  
+  
+### Вопрос №3: для всех ли случаев подойдёт такое построение ключа?  
+`const cacheKey = url.origin + url.pathname`  
+Такой ключ не учитывает query-параметры. Объект url содержит свойство search, в котором как-раз хранится query-строка.  
+  
+### Вопрос №4: зачем нужна эта цепочка вызовов?  
+```
+return caches.keys()
+  .then(names => {
+    return Promise.all(
+      // Цепочка вызовов
+      names.filter(name => name !== CACHE_VERSION)
+        .map(name => {
+          console.log('[ServiceWorker] Deleting obsolete cache:', name);
+          return caches.delete(name);
+        })
+    );
+  });
+```  
+Для начала про весь кусок кода. Он выполнится только в том случае, если глобальная версия кеша изменится. Вызов `caches.keys()` вернет промис с ключами всех хранилищ, которые доступны ServiceWorker-у. `Promise.all()` вернет resolved-промис, если все переданные ему промисы выполнятся успешно.  
+Теперь про цепочку вызовов. `names.filter(name => name !== CACHE_VERSION)` проверяет все версии хранилищ и отбрасывает актуальные. `.map(name => caches.delete(name))` удаляет неактуальные версии хранилищ и возвращает массив resolved- или rejected-промисов в зависимости от успешноого или неуспешного удаления.  
+  
+### Вопрос №5: для чего нужно клонирование?  
+`cache.put(cacheKey, response.clone())`  
+`cache.put()` используется для добавления в кеш запрашиваемого ресурса. Здесь response - это поток, который создается функцией fetch и прокидывается в обработчик resolved-промиса. Поток response может быть прочитан только один раз. Соответственно, если прочитать из него в ServiceWorker-е, основной поток выполнения в браузере не сможет получить доступ к этому потоку. Решение - склонировать поток с помощью `response.clone()`. [Подробнее](https://developer.mozilla.org/en-US/docs/Web/API/Response/clone)
+
 ## Запуск
 $ npm i http-server  
 $ http-server  
